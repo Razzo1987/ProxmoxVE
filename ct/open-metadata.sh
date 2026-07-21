@@ -15,7 +15,7 @@ var_version="${var_version:-13}"
 var_arm64="${var_arm64:-yes}"
 var_unprivileged="${var_unprivileged:-1}"
 
-OM_VERSION="${OM_VERSION:-1.13.3}"
+OM_VERSION="${OM_VERSION:-1.13.1}"
 OM_DB="${OM_DB:-mysql}"
 OM_DIR="${OM_DIR:-/opt/openmetadata}"
 OM_ENABLE_BASIC_AUTH="${OM_ENABLE_BASIC_AUTH:-yes}"
