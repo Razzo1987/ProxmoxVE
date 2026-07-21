@@ -35,6 +35,12 @@ function install_docker_alpine() {
   msg_ok "Docker installed in CT ${CTID}"
 }
 
+function create_om_dirs() {
+  msg_info "Creating OpenMetadata directories"
+  pct exec "$CTID" -- sh -lc "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; /usr/bin/install -d '$OM_DIR' '$OM_DIR/docker-volume' '$OM_DIR/docker-volume/mysql' '$OM_DIR/docker-volume/postgresql' '$OM_DIR/docker-volume/elasticsearch' '$OM_DIR/docker-volume/dags' '$OM_DIR/docker-volume/logs'"
+  msg_ok "OpenMetadata directories created"
+}
+
 function setup_openmetadata() {
   msg_info "Preparing OpenMetadata lab deployment in CT ${CTID}"
 
@@ -53,7 +59,7 @@ function setup_openmetadata() {
   fi
   msg_ok "Compose URL valid"
 
-  pct exec "$CTID" -- sh -lc "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; mkdir -p '$OM_DIR' '$OM_DIR/docker-volume/mysql' '$OM_DIR/docker-volume/postgresql' '$OM_DIR/docker-volume/elasticsearch' '$OM_DIR/docker-volume/dags' '$OM_DIR/docker-volume/logs'"
+  create_om_dirs
 
   msg_info "Downloading OpenMetadata compose file"
   pct exec "$CTID" -- sh -lc "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; cd '$OM_DIR' && curl -fsSL -o '$COMPOSE_FILE' '$COMPOSE_URL'"
@@ -86,7 +92,8 @@ function update_script() {
   COMPOSE_URL="https://github.com/open-metadata/OpenMetadata/releases/download/${OM_VERSION}-release/${COMPOSE_FILE}"
 
   if curl -fsI "$COMPOSE_URL" >/dev/null 2>&1; then
-    pct exec "$CTID" -- sh -lc "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; mkdir -p '$OM_DIR' && cd '$OM_DIR' && curl -fsSL -o '$COMPOSE_FILE' '$COMPOSE_URL' && docker compose -f '$COMPOSE_FILE' pull && docker compose -f '$COMPOSE_FILE' up -d"
+    create_om_dirs
+    pct exec "$CTID" -- sh -lc "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; cd '$OM_DIR' && curl -fsSL -o '$COMPOSE_FILE' '$COMPOSE_URL' && docker compose -f '$COMPOSE_FILE' pull && docker compose -f '$COMPOSE_FILE' up -d"
     msg_ok "OpenMetadata updated"
   else
     msg_error "Compose file not found during update: $COMPOSE_URL"
