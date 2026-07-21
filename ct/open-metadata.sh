@@ -24,24 +24,23 @@ variables
 color
 catch_errors
 
+function exec_in_ct() {
+  pct exec "$CTID" -- sh -lc "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; $1"
+}
+
 function install_docker_alpine() {
-  msg_info "Installing Docker on Alpine"
-  apk update >/dev/null 2>&1
-  apk add --no-cache docker docker-cli-compose curl bash coreutils iproute2 >/dev/null 2>&1
-  rc-update add docker default >/dev/null 2>&1 || true
-  service docker start >/dev/null 2>&1 || rc-service docker start >/dev/null 2>&1 || true
-  sleep 3
-  if ! docker info >/dev/null 2>&1; then
-    msg_error "Docker daemon is not running"
-    exit 1
-  fi
-  msg_ok "Docker installed"
+  msg_info "Installing Docker on Alpine CT ${CTID}"
+  exec_in_ct "/sbin/apk update >/dev/null 2>&1"
+  exec_in_ct "/sbin/apk add --no-cache docker docker-cli-compose curl bash coreutils iproute2 >/dev/null 2>&1"
+  exec_in_ct "rc-update add docker default >/dev/null 2>&1 || true"
+  exec_in_ct "rc-service docker start >/dev/null 2>&1 || service docker start >/dev/null 2>&1 || true"
+  sleep 5
+  exec_in_ct "docker info >/dev/null 2>&1"
+  msg_ok "Docker installed in CT ${CTID}"
 }
 
 function setup_openmetadata() {
-  msg_info "Preparing OpenMetadata lab deployment"
-  mkdir -p "$OM_DIR"
-  cd "$OM_DIR"
+  msg_info "Preparing OpenMetadata lab deployment in CT ${CTID}"
 
   if [[ "$OM_DB" == "postgres" ]]; then
     COMPOSE_FILE="docker-compose-postgres.yml"
@@ -49,52 +48,53 @@ function setup_openmetadata() {
     COMPOSE_FILE="docker-compose.yml"
   fi
 
-  msg_info "Downloading OpenMetadata compose file"
-  if ! curl -fsSL -o "$COMPOSE_FILE" "https://github.com/open-metadata/OpenMetadata/releases/download/${OM_VERSION}-release/${COMPOSE_FILE}"; then
-    msg_error "Failed to download OpenMetadata compose file for version ${OM_VERSION}"
+  COMPOSE_URL="https://github.com/open-metadata/OpenMetadata/releases/download/${OM_VERSION}-release/${COMPOSE_FILE}"
+
+  msg_info "Validating OpenMetadata compose URL"
+  if ! curl -fsI "$COMPOSE_URL" >/dev/null 2>&1; then
+    msg_error "Compose file not found: $COMPOSE_URL"
     exit 1
   fi
+  msg_ok "Compose URL valid"
+
+  exec_in_ct "mkdir -p '$OM_DIR' '$OM_DIR/docker-volume/mysql' '$OM_DIR/docker-volume/postgresql' '$OM_DIR/docker-volume/elasticsearch' '$OM_DIR/docker-volume/dags' '$OM_DIR/docker-volume/logs'"
+
+  msg_info "Downloading OpenMetadata compose file"
+  exec_in_ct "cd '$OM_DIR' && curl -fsSL -o '$COMPOSE_FILE' '$COMPOSE_URL'"
   msg_ok "Downloaded OpenMetadata compose file"
 
-  msg_info "Creating persistent directories"
-  mkdir -p docker-volume/{mysql,postgresql,elasticsearch,dags,logs}
-  msg_ok "Persistent directories created"
-
   msg_info "Starting OpenMetadata stack"
-  if docker compose -f "$COMPOSE_FILE" up -d; then
-    msg_ok "OpenMetadata stack started"
-  else
-    msg_error "Failed to start OpenMetadata stack"
-    exit 1
-  fi
+  exec_in_ct "cd '$OM_DIR' && docker compose -f '$COMPOSE_FILE' up -d"
+  msg_ok "OpenMetadata stack started"
 
-  local CTIP
-  CTIP=$(hostname -I | awk '{print $1}')
+  CTIP=$(pct exec "$CTID" -- hostname -I | awk '{print $1}')
   msg_ok "OpenMetadata should become available at: http://${CTIP}:8585"
   msg_ok "Airflow should become available at: http://${CTIP}:8080"
 }
 
 function update_script() {
   header_info
-  msg_info "Updating Alpine base system"
-  $STD apk update
-  $STD apk upgrade
+  msg_info "Updating Alpine base system in CT ${CTID}"
+  exec_in_ct "/sbin/apk update >/dev/null 2>&1 && /sbin/apk upgrade >/dev/null 2>&1"
   msg_ok "Base system updated"
 
-  if command -v docker >/dev/null 2>&1; then
-    msg_info "Updating OpenMetadata deployment"
-    cd "$OM_DIR" 2>/dev/null || true
-    if [[ -f docker-compose.yml || -f docker-compose-postgres.yml ]]; then
-      if [[ "$OM_DB" == "postgres" ]]; then
-        COMPOSE_FILE="docker-compose-postgres.yml"
-      else
-        COMPOSE_FILE="docker-compose.yml"
-      fi
-      $STD curl -fsSL -o "$COMPOSE_FILE" "https://github.com/open-metadata/OpenMetadata/releases/download/${OM_VERSION}-release/${COMPOSE_FILE}"
-      $STD docker compose -f "$COMPOSE_FILE" pull
-      $STD docker compose -f "$COMPOSE_FILE" up -d
-      msg_ok "OpenMetadata updated"
-    fi
+  msg_info "Ensuring Docker is available"
+  install_docker_alpine
+
+  msg_info "Updating OpenMetadata deployment"
+  if [[ "$OM_DB" == "postgres" ]]; then
+    COMPOSE_FILE="docker-compose-postgres.yml"
+  else
+    COMPOSE_FILE="docker-compose.yml"
+  fi
+  COMPOSE_URL="https://github.com/open-metadata/OpenMetadata/releases/download/${OM_VERSION}-release/${COMPOSE_FILE}"
+
+  if curl -fsI "$COMPOSE_URL" >/dev/null 2>&1; then
+    exec_in_ct "mkdir -p '$OM_DIR' && cd '$OM_DIR' && curl -fsSL -o '$COMPOSE_FILE' '$COMPOSE_URL' && docker compose -f '$COMPOSE_FILE' pull && docker compose -f '$COMPOSE_FILE' up -d"
+    msg_ok "OpenMetadata updated"
+  else
+    msg_error "Compose file not found during update: $COMPOSE_URL"
+    exit 1
   fi
 
   msg_ok "Updated successfully!"
