@@ -71,6 +71,9 @@ EOT
   msg_info "Starting OpenMetadata stack"
   docker compose -f "$COMPOSE_FILE" up -d
   msg_ok "OpenMetadata stack started"
+
+  sleep 10
+  docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -E 'openmetadata|mysql|postgres|elasticsearch|ingestion' || true
 }
 
 function update_script() {
@@ -140,7 +143,6 @@ function update_script() {
       portainer/agent
     msg_ok "Updated Portainer Agent"
   fi
-
   msg_ok "Updated successfully!"
   exit
 }
@@ -154,8 +156,6 @@ setup_docker
 msg_ok "Docker installed"
 
 setup_openmetadata
-
-auto_start_container
 
 msg_ok "Completed successfully!\n"
 echo -e "${CREATING}${GN}${APP} setup has been successfully initialized!${CL}"
