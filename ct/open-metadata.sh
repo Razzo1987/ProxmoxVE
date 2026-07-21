@@ -6,43 +6,30 @@ source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxV
 # Source: https://www.docker.com/ | https://github.com/open-metadata/OpenMetadata
 
 APP="OpenMetadata"
-var_tags="${var_tags:-docker;alpine;data-governance}"
+var_tags="${var_tags:-docker;data-governance}"
 var_cpu="${var_cpu:-4}"
-var_ram="${var_ram:-8192}"
-var_disk="${var_disk:-32}"
-var_os="${var_os:-alpine}"
-var_version="${var_version:-3.23}"
+var_ram="${var_ram:-16384}"
+var_disk="${var_disk:-100}"
+var_os="${var_os:-debian}"
+var_version="${var_version:-13}"
 var_arm64="${var_arm64:-yes}"
 var_unprivileged="${var_unprivileged:-1}"
 
-OM_VERSION="${OM_VERSION:-1.12.6}"
+OM_VERSION="${OM_VERSION:-1.13.3}"
 OM_DB="${OM_DB:-mysql}"
 OM_DIR="${OM_DIR:-/opt/openmetadata}"
+OM_ENABLE_BASIC_AUTH="${OM_ENABLE_BASIC_AUTH:-yes}"
+OM_SUBPATH="${OM_SUBPATH:-}"
 
 header_info "$APP"
 variables
 color
 catch_errors
 
-function install_docker_alpine() {
-  msg_info "Installing Docker on Alpine CT ${CTID}"
-  pct exec "$CTID" -- sh -lc 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; /sbin/apk update >/dev/null 2>&1'
-  pct exec "$CTID" -- sh -lc 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; /sbin/apk add --no-cache docker docker-cli-compose curl bash coreutils iproute2 >/dev/null 2>&1'
-  pct exec "$CTID" -- sh -lc 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; rc-update add docker default >/dev/null 2>&1 || true'
-  pct exec "$CTID" -- sh -lc 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; rc-service docker start >/dev/null 2>&1 || service docker start >/dev/null 2>&1 || true'
-  sleep 5
-  pct exec "$CTID" -- sh -lc 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; docker info >/dev/null 2>&1'
-  msg_ok "Docker installed in CT ${CTID}"
-}
-
-function create_om_dirs() {
-  msg_info "Creating OpenMetadata directories"
-  pct exec "$CTID" -- sh -lc "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; /usr/bin/install -d '$OM_DIR' '$OM_DIR/docker-volume' '$OM_DIR/docker-volume/mysql' '$OM_DIR/docker-volume/postgresql' '$OM_DIR/docker-volume/elasticsearch' '$OM_DIR/docker-volume/dags' '$OM_DIR/docker-volume/logs'"
-  msg_ok "OpenMetadata directories created"
-}
-
 function setup_openmetadata() {
-  msg_info "Preparing OpenMetadata lab deployment in CT ${CTID}"
+  msg_info "Preparing OpenMetadata deployment"
+  mkdir -p "$OM_DIR"
+  cd "$OM_DIR"
 
   if [[ "$OM_DB" == "postgres" ]]; then
     COMPOSE_FILE="docker-compose-postgres.yml"
@@ -52,63 +39,120 @@ function setup_openmetadata() {
 
   COMPOSE_URL="https://github.com/open-metadata/OpenMetadata/releases/download/${OM_VERSION}-release/${COMPOSE_FILE}"
 
-  msg_info "Validating OpenMetadata compose URL"
+  msg_info "Validating compose URL"
   if ! curl -fsI "$COMPOSE_URL" >/dev/null 2>&1; then
     msg_error "Compose file not found: $COMPOSE_URL"
     exit 1
   fi
   msg_ok "Compose URL valid"
 
-  create_om_dirs
+  msg_info "Downloading OpenMetadata compose"
+  curl -fsSL -o "$COMPOSE_FILE" "$COMPOSE_URL"
+  msg_ok "Compose downloaded"
 
-  msg_info "Downloading OpenMetadata compose file"
-  pct exec "$CTID" -- sh -lc "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; cd '$OM_DIR' && curl -fsSL -o '$COMPOSE_FILE' '$COMPOSE_URL'"
-  msg_ok "Downloaded OpenMetadata compose file"
+  msg_info "Preparing environment overrides"
+  cat > .env <<EOT
+OM_VERSION=${OM_VERSION}
+EOT
+
+  if [[ "$OM_ENABLE_BASIC_AUTH" == "yes" ]]; then
+    cat >> .env <<EOT
+AUTHENTICATION_PROVIDER=basic
+EOT
+  fi
+
+  if [[ -n "$OM_SUBPATH" ]]; then
+    cat >> .env <<EOT
+SERVER_BASE_URL=${OM_SUBPATH}
+EOT
+  fi
+  msg_ok "Environment overrides prepared"
 
   msg_info "Starting OpenMetadata stack"
-  pct exec "$CTID" -- sh -lc "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; cd '$OM_DIR' && docker compose -f '$COMPOSE_FILE' up -d"
+  docker compose -f "$COMPOSE_FILE" up -d
   msg_ok "OpenMetadata stack started"
-
-  CTIP=$(pct exec "$CTID" -- hostname -I | awk '{print $1}')
-  msg_ok "OpenMetadata should become available at: http://${CTIP}:8585"
-  msg_ok "Airflow should become available at: http://${CTIP}:8080"
 }
 
 function update_script() {
   header_info
-  msg_info "Updating Alpine base system in CT ${CTID}"
-  pct exec "$CTID" -- sh -lc 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; /sbin/apk update >/dev/null 2>&1 && /sbin/apk upgrade >/dev/null 2>&1'
+  check_container_storage
+  check_container_resources
+
+  msg_info "Updating base system"
+  $STD apt update
+  $STD apt upgrade -y
   msg_ok "Base system updated"
 
-  msg_info "Ensuring Docker is available"
-  install_docker_alpine
-
-  msg_info "Updating OpenMetadata deployment"
-  if [[ "$OM_DB" == "postgres" ]]; then
-    COMPOSE_FILE="docker-compose-postgres.yml"
+  if dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
+    USE_DOCKER_REPO="true" setup_docker
   else
-    COMPOSE_FILE="docker-compose.yml"
+    setup_docker
   fi
-  COMPOSE_URL="https://github.com/open-metadata/OpenMetadata/releases/download/${OM_VERSION}-release/${COMPOSE_FILE}"
 
-  if curl -fsI "$COMPOSE_URL" >/dev/null 2>&1; then
-    create_om_dirs
-    pct exec "$CTID" -- sh -lc "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; cd '$OM_DIR' && curl -fsSL -o '$COMPOSE_FILE' '$COMPOSE_URL' && docker compose -f '$COMPOSE_FILE' pull && docker compose -f '$COMPOSE_FILE' up -d"
-    msg_ok "OpenMetadata updated"
-  else
-    msg_error "Compose file not found during update: $COMPOSE_URL"
-    exit 1
+  if [[ -d "$OM_DIR" ]]; then
+    msg_info "Updating OpenMetadata deployment"
+    cd "$OM_DIR"
+    if [[ "$OM_DB" == "postgres" ]]; then
+      COMPOSE_FILE="docker-compose-postgres.yml"
+    else
+      COMPOSE_FILE="docker-compose.yml"
+    fi
+    COMPOSE_URL="https://github.com/open-metadata/OpenMetadata/releases/download/${OM_VERSION}-release/${COMPOSE_FILE}"
+    if curl -fsI "$COMPOSE_URL" >/dev/null 2>&1; then
+      $STD curl -fsSL -o "$COMPOSE_FILE" "$COMPOSE_URL"
+      $STD docker compose -f "$COMPOSE_FILE" pull
+      $STD docker compose -f "$COMPOSE_FILE" up -d
+      msg_ok "OpenMetadata updated"
+    else
+      msg_error "Compose file not found during update: $COMPOSE_URL"
+      exit 1
+    fi
+  fi
+
+  if docker ps -a --format '{{.Image}}' | grep -q '^portainer/portainer-ce:latest$'; then
+    msg_info "Updating Portainer"
+    $STD docker pull portainer/portainer-ce:latest
+    $STD docker stop portainer
+    $STD docker rm portainer
+    $STD docker volume create portainer_data >/dev/null 2>&1
+    $STD docker run -d \
+      -p 8000:8000 \
+      -p 9443:9443 \
+      --name=portainer \
+      --restart=always \
+      -v /var/run/docker.sock:/var/run/docker.sock \
+      -v portainer_data:/data \
+      portainer/portainer-ce:latest
+    msg_ok "Updated Portainer"
+  fi
+
+  if docker ps -a --format '{{.Names}}' | grep -q '^portainer_agent$'; then
+    msg_info "Updating Portainer Agent"
+    $STD docker pull portainer/agent:latest
+    $STD docker stop portainer_agent
+    $STD docker rm portainer_agent
+    $STD docker run -d \
+      -p 9001:9001 \
+      --name=portainer_agent \
+      --restart=always \
+      -v /var/run/docker.sock:/var/run/docker.sock \
+      -v /var/lib/docker/volumes:/var/lib/docker/volumes \
+      portainer/agent
+    msg_ok "Updated Portainer Agent"
   fi
 
   msg_ok "Updated successfully!"
-  exit 0
+  exit
 }
 
 start
 build_container
 description
 
-install_docker_alpine
+msg_info "Installing Docker"
+setup_docker
+msg_ok "Docker installed"
+
 setup_openmetadata
 
 auto_start_container
@@ -120,5 +164,5 @@ echo -e "${TAB}${GATEWAY}${BGN}http://${IP}:8585${CL}"
 echo -e "${INFO}${YW} Airflow URL:${CL}"
 echo -e "${TAB}${GATEWAY}${BGN}http://${IP}:8080${CL}"
 echo -e "${INFO}${YW} OpenMetadata default login:${CL} ${BGN}admin@open-metadata.org / admin${CL}"
-echo -e "${INFO}${YW} Airflow default login:${CL} ${BGN}admin / admin${CL}"
-echo -e "${INFO}${YW} OpenMetadata files:${CL} ${BGN}${OM_DIR}${CL}"
+echo -e "${INFO}${YW} Basic Auth:${CL} ${BGN}${OM_ENABLE_BASIC_AUTH}${CL}"
+echo -e "${INFO}${YW} Install path:${CL} ${BGN}${OM_DIR}${CL}"
