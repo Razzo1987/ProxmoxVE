@@ -26,10 +26,32 @@ variables
 color
 catch_errors
 
-function setup_openmetadata() {
-  msg_info "Preparing OpenMetadata deployment"
-  mkdir -p "$OM_DIR"
-  cd "$OM_DIR"
+pct_exec() {
+  pct exec "$CTID" -- bash -lc "$1"
+}
+
+pct_exec_no_pipefail() {
+  pct exec "$CTID" -- bash -lc "$1"
+}
+
+install_docker_in_ct() {
+  msg_info "Installing Docker ${CTID}"
+  pct_exec "apt-get update"
+  pct_exec "apt-get install -y ca-certificates curl gnupg"
+  pct_exec "install -m 0755 -d /etc/apt/keyrings"
+  pct_exec "curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc"
+  pct_exec "chmod a+r /etc/apt/keyrings/docker.asc"
+  pct_exec "echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \$(. /etc/os-release && echo \$VERSION_CODENAME) stable\" > /etc/apt/sources.list.d/docker.list"
+  pct_exec "apt-get update"
+  pct_exec "apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"
+  pct_exec "systemctl enable --now docker"
+  pct_exec "docker --version"
+  pct_exec "docker compose version"
+  msg_ok "Docker installed ${CTID}"
+}
+
+setup_openmetadata_in_ct() {
+  msg_info "Preparing OpenMetadata deployment ${CTID}"
 
   if [[ "$OM_DB" == "postgres" ]]; then
     COMPOSE_FILE="docker-compose-postgres.yml"
@@ -46,103 +68,79 @@ function setup_openmetadata() {
   fi
   msg_ok "Compose URL valid"
 
-  msg_info "Downloading OpenMetadata compose"
-  curl -fsSL -o "$COMPOSE_FILE" "$COMPOSE_URL"
+  pct_exec "mkdir -p '$OM_DIR'"
+
+  msg_info "Downloading OpenMetadata compose ${CTID}"
+  pct_exec "cd '$OM_DIR' && curl -fsSL -o '$COMPOSE_FILE' '$COMPOSE_URL'"
   msg_ok "Compose downloaded"
 
-  msg_info "Preparing environment overrides"
-  cat > .env <<EOT
-OM_VERSION=${OM_VERSION}
-EOT
+  msg_info "Preparing environment overrides ${CTID}"
+  pct_exec "cd '$OM_DIR' && : > .env && printf 'OM_VERSION=%s\n' '$OM_VERSION' >> .env"
 
   if [[ "$OM_ENABLE_BASIC_AUTH" == "yes" ]]; then
-    cat >> .env <<EOT
-AUTHENTICATION_PROVIDER=basic
-EOT
+    pct_exec "cd '$OM_DIR' && printf 'AUTHENTICATION_PROVIDER=basic\n' >> .env"
   fi
 
   if [[ -n "$OM_SUBPATH" ]]; then
-    cat >> .env <<EOT
-SERVER_BASE_URL=${OM_SUBPATH}
-EOT
+    pct_exec "cd '$OM_DIR' && printf 'SERVER_BASE_URL=%s\n' '$OM_SUBPATH' >> .env"
   fi
   msg_ok "Environment overrides prepared"
 
-  msg_info "Starting OpenMetadata stack"
-  docker compose -f "$COMPOSE_FILE" up -d
+  msg_info "Starting OpenMetadata stack ${CTID}"
+  pct_exec "cd '$OM_DIR' && docker compose -f '$COMPOSE_FILE' up -d"
   msg_ok "OpenMetadata stack started"
 
-  sleep 10
-  docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -E 'openmetadata|mysql|postgres|elasticsearch|ingestion' || true
+  msg_info "Checking running containers ${CTID}"
+  pct_exec_no_pipefail "docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -E 'openmetadata|mysql|postgres|elasticsearch|ingestion' || true"
+  msg_ok "Container check completed"
 }
 
-function update_script() {
+verify_ct_runtime() {
+  msg_info "Verifying runtime is ${CTID}"
+  pct_exec "which docker"
+  pct_exec "systemctl is-active docker"
+  pct_exec "docker ps >/dev/null"
+  msg_ok "Docker runtime verified ${CTID}"
+}
+
+update_script() {
   header_info
   check_container_storage
   check_container_resources
 
-  msg_info "Updating base system"
-  $STD apt update
-  $STD apt upgrade -y
+  msg_info "Updating base system ${CTID}"
+  pct_exec "apt-get update && apt-get upgrade -y"
   msg_ok "Base system updated"
 
-  if dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
-    USE_DOCKER_REPO="true" setup_docker
+  if pct exec "$CTID" -- dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
+    msg_info "Docker already installed in CT ${CTID}"
   else
-    setup_docker
+    install_docker_in_ct
   fi
 
-  if [[ -d "$OM_DIR" ]]; then
-    msg_info "Updating OpenMetadata deployment"
-    cd "$OM_DIR"
+  if pct exec "$CTID" -- test -d "$OM_DIR"; then
+    msg_info "Updating OpenMetadata deployment ${CTID}"
+
     if [[ "$OM_DB" == "postgres" ]]; then
       COMPOSE_FILE="docker-compose-postgres.yml"
     else
       COMPOSE_FILE="docker-compose.yml"
     fi
+
     COMPOSE_URL="https://github.com/open-metadata/OpenMetadata/releases/download/${OM_VERSION}-release/${COMPOSE_FILE}"
+
     if curl -fsI "$COMPOSE_URL" >/dev/null 2>&1; then
-      $STD curl -fsSL -o "$COMPOSE_FILE" "$COMPOSE_URL"
-      $STD docker compose -f "$COMPOSE_FILE" pull
-      $STD docker compose -f "$COMPOSE_FILE" up -d
-      msg_ok "OpenMetadata updated"
+      pct_exec "cd '$OM_DIR' && curl -fsSL -o '$COMPOSE_FILE' '$COMPOSE_URL'"
+      pct_exec "cd '$OM_DIR' && docker compose -f '$COMPOSE_FILE' pull"
+      pct_exec "cd '$OM_DIR' && docker compose -f '$COMPOSE_FILE' up -d"
+      msg_ok "OpenMetadata updated ${CTID}"
     else
       msg_error "Compose file not found during update: $COMPOSE_URL"
       exit 1
     fi
   fi
 
-  if docker ps -a --format '{{.Image}}' | grep -q '^portainer/portainer-ce:latest$'; then
-    msg_info "Updating Portainer"
-    $STD docker pull portainer/portainer-ce:latest
-    $STD docker stop portainer
-    $STD docker rm portainer
-    $STD docker volume create portainer_data >/dev/null 2>&1
-    $STD docker run -d \
-      -p 8000:8000 \
-      -p 9443:9443 \
-      --name=portainer \
-      --restart=always \
-      -v /var/run/docker.sock:/var/run/docker.sock \
-      -v portainer_data:/data \
-      portainer/portainer-ce:latest
-    msg_ok "Updated Portainer"
-  fi
-
-  if docker ps -a --format '{{.Names}}' | grep -q '^portainer_agent$'; then
-    msg_info "Updating Portainer Agent"
-    $STD docker pull portainer/agent:latest
-    $STD docker stop portainer_agent
-    $STD docker rm portainer_agent
-    $STD docker run -d \
-      -p 9001:9001 \
-      --name=portainer_agent \
-      --restart=always \
-      -v /var/run/docker.sock:/var/run/docker.sock \
-      -v /var/lib/docker/volumes:/var/lib/docker/volumes \
-      portainer/agent
-    msg_ok "Updated Portainer Agent"
-  fi
+  verify_ct_runtime
   msg_ok "Updated successfully!"
   exit
 }
@@ -151,14 +149,12 @@ start
 build_container
 description
 
-msg_info "Installing Docker"
-setup_docker
-msg_ok "Docker installed"
-
-setup_openmetadata
+install_docker_in_ct
+setup_openmetadata_in_ct
+verify_ct_runtime
 
 msg_ok "Completed successfully!\n"
-echo -e "${CREATING}${GN}${APP} setup has been successfully initialized!${CL}"
+echo -e "${CREATING}${GN}${APP} setup has been successfully initialized ${CTID}!${CL}"
 echo -e "${INFO}${YW} OpenMetadata URL:${CL}"
 echo -e "${TAB}${GATEWAY}${BGN}http://${IP}:8585${CL}"
 echo -e "${INFO}${YW} Airflow URL:${CL}"
