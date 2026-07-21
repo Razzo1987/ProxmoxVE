@@ -24,18 +24,14 @@ variables
 color
 catch_errors
 
-function exec_in_ct() {
-  pct exec "$CTID" -- sh -lc "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; $1"
-}
-
 function install_docker_alpine() {
   msg_info "Installing Docker on Alpine CT ${CTID}"
-  exec_in_ct "/sbin/apk update >/dev/null 2>&1"
-  exec_in_ct "/sbin/apk add --no-cache docker docker-cli-compose curl bash coreutils iproute2 >/dev/null 2>&1"
-  exec_in_ct "rc-update add docker default >/dev/null 2>&1 || true"
-  exec_in_ct "rc-service docker start >/dev/null 2>&1 || service docker start >/dev/null 2>&1 || true"
+  pct exec "$CTID" -- sh -lc 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; /sbin/apk update >/dev/null 2>&1'
+  pct exec "$CTID" -- sh -lc 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; /sbin/apk add --no-cache docker docker-cli-compose curl bash coreutils iproute2 >/dev/null 2>&1'
+  pct exec "$CTID" -- sh -lc 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; rc-update add docker default >/dev/null 2>&1 || true'
+  pct exec "$CTID" -- sh -lc 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; rc-service docker start >/dev/null 2>&1 || service docker start >/dev/null 2>&1 || true'
   sleep 5
-  exec_in_ct "docker info >/dev/null 2>&1"
+  pct exec "$CTID" -- sh -lc 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; docker info >/dev/null 2>&1'
   msg_ok "Docker installed in CT ${CTID}"
 }
 
@@ -57,14 +53,14 @@ function setup_openmetadata() {
   fi
   msg_ok "Compose URL valid"
 
-  exec_in_ct "mkdir -p '$OM_DIR' '$OM_DIR/docker-volume/mysql' '$OM_DIR/docker-volume/postgresql' '$OM_DIR/docker-volume/elasticsearch' '$OM_DIR/docker-volume/dags' '$OM_DIR/docker-volume/logs'"
+  pct exec "$CTID" -- sh -lc "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; mkdir -p '$OM_DIR' '$OM_DIR/docker-volume/mysql' '$OM_DIR/docker-volume/postgresql' '$OM_DIR/docker-volume/elasticsearch' '$OM_DIR/docker-volume/dags' '$OM_DIR/docker-volume/logs'"
 
   msg_info "Downloading OpenMetadata compose file"
-  exec_in_ct "cd '$OM_DIR' && curl -fsSL -o '$COMPOSE_FILE' '$COMPOSE_URL'"
+  pct exec "$CTID" -- sh -lc "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; cd '$OM_DIR' && curl -fsSL -o '$COMPOSE_FILE' '$COMPOSE_URL'"
   msg_ok "Downloaded OpenMetadata compose file"
 
   msg_info "Starting OpenMetadata stack"
-  exec_in_ct "cd '$OM_DIR' && docker compose -f '$COMPOSE_FILE' up -d"
+  pct exec "$CTID" -- sh -lc "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; cd '$OM_DIR' && docker compose -f '$COMPOSE_FILE' up -d"
   msg_ok "OpenMetadata stack started"
 
   CTIP=$(pct exec "$CTID" -- hostname -I | awk '{print $1}')
@@ -75,7 +71,7 @@ function setup_openmetadata() {
 function update_script() {
   header_info
   msg_info "Updating Alpine base system in CT ${CTID}"
-  exec_in_ct "/sbin/apk update >/dev/null 2>&1 && /sbin/apk upgrade >/dev/null 2>&1"
+  pct exec "$CTID" -- sh -lc 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; /sbin/apk update >/dev/null 2>&1 && /sbin/apk upgrade >/dev/null 2>&1'
   msg_ok "Base system updated"
 
   msg_info "Ensuring Docker is available"
@@ -90,7 +86,7 @@ function update_script() {
   COMPOSE_URL="https://github.com/open-metadata/OpenMetadata/releases/download/${OM_VERSION}-release/${COMPOSE_FILE}"
 
   if curl -fsI "$COMPOSE_URL" >/dev/null 2>&1; then
-    exec_in_ct "mkdir -p '$OM_DIR' && cd '$OM_DIR' && curl -fsSL -o '$COMPOSE_FILE' '$COMPOSE_URL' && docker compose -f '$COMPOSE_FILE' pull && docker compose -f '$COMPOSE_FILE' up -d"
+    pct exec "$CTID" -- sh -lc "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; mkdir -p '$OM_DIR' && cd '$OM_DIR' && curl -fsSL -o '$COMPOSE_FILE' '$COMPOSE_URL' && docker compose -f '$COMPOSE_FILE' pull && docker compose -f '$COMPOSE_FILE' up -d"
     msg_ok "OpenMetadata updated"
   else
     msg_error "Compose file not found during update: $COMPOSE_URL"
