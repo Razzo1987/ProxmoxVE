@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# Scripts root: when curl-piped, build.func cannot infer where THIS script came
+# from (no local path to walk), so it would default to community-scripts/ProxmoxVED
+# and 404 on install/. Pin it to this repo unless the caller already overrode it
+# (e.g. to test a branch: COMMUNITY_SCRIPTS_URL=... bash -c "$(curl ...)").
+export COMMUNITY_SCRIPTS_URL="${COMMUNITY_SCRIPTS_URL:-https://raw.githubusercontent.com/Razzo1987/ProxmoxVE/main}"
+
 # Engine comes from community-scripts/core; this repo only ships the scripts.
 # Local checkout wins (COMMUNITY_SCRIPTS_CORE_DIR, else a sibling ../core), so a
 # fork/branch of core can be tested without touching this file.
@@ -73,6 +79,12 @@ function update_script() {
 }
 
 start
+# core/ui/{advanced,defaults}.func unconditionally prepend "community-script"
+# to TAGS unless var_tags already contains that substring - not overridable
+# via var_tags, so strip it from the resolved TAGS before creating the CT.
+TAGS="${TAGS//community-script;/}"
+TAGS="${TAGS//community-script/}"
+TAGS="${TAGS#;}"
 build_container
 description
 
