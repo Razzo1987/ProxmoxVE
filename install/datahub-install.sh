@@ -21,6 +21,22 @@ curl -fsSL -o /opt/datahub/docker-compose.yml \
   https://raw.githubusercontent.com/datahub-project/datahub/master/docker/quickstart/docker-compose.quickstart-profile.yml
 msg_ok "Fetched DataHub Quickstart Compose File"
 
+# Every service in the compose file sits behind a `profiles:` list (no
+# service is profile-less), so without COMPOSE_PROFILES "up" selects nothing
+# ("no service selected"). DATAHUB_VERSION/TOKEN_SERVICE_* have no compose
+# defaults either, so an unset value silently becomes an empty image tag.
+# `docker compose` auto-loads .env from the working directory.
+msg_info "Writing DataHub Environment File"
+CLI_VERSION="$(curl -fsSL https://api.github.com/repos/datahub-project/datahub/releases/latest | grep -m1 '"tag_name"' | cut -d'"' -f4 | sed 's/^v//')"
+cat <<EOF >/opt/datahub/.env
+COMPOSE_PROFILES=quickstart
+DATAHUB_VERSION=quickstart
+DATAHUB_TOKEN_SERVICE_SALT=$(openssl rand -base64 32)
+DATAHUB_TOKEN_SERVICE_SIGNING_KEY=$(openssl rand -base64 32)
+UI_INGESTION_DEFAULT_CLI_VERSION=${CLI_VERSION:-quickstart}
+EOF
+msg_ok "Wrote DataHub Environment File"
+
 msg_info "Starting DataHub (first run pulls several images and can take a while)"
 cd /opt/datahub
 $STD docker compose -f docker-compose.yml -p datahub pull

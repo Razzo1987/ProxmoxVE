@@ -80,6 +80,11 @@ function update_script() {
     exit
   fi
 
+  if [[ ! -f /opt/datahub/.env ]]; then
+    msg_error "Missing /opt/datahub/.env (COMPOSE_PROFILES/DATAHUB_VERSION/secrets) - reinstall the container."
+    exit
+  fi
+
   msg_info "Fetching latest DataHub Quickstart Compose File"
   curl -fsSL -o /opt/datahub/docker-compose.yml \
     https://raw.githubusercontent.com/datahub-project/datahub/master/docker/quickstart/docker-compose.quickstart-profile.yml

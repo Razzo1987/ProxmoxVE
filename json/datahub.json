@@ -46,6 +46,10 @@
       "type": "info"
     },
     {
+      "text": "Images are pinned to upstream's rolling 'quickstart' tag (DATAHUB_VERSION=quickstart in /opt/datahub/.env), not a fixed release - 'docker compose pull' on update follows whatever upstream currently ships there.",
+      "type": "info"
+    },
+    {
       "text": "Default login: datahub / datahub. Change it before exposing this instance beyond your local network.",
       "type": "info"
     }
