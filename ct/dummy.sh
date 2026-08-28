@@ -44,6 +44,28 @@ variables
 color
 catch_errors
 
+# Replaces core's description() (community-scripts branded HTML) with our own.
+function custom_description() {
+  IP=$(pct exec "$CTID" ip a s dev eth0 | awk '/inet / {print $2}' | cut -d/ -f1)
+  DESCRIPTION=$(cat <<EOF
+<div align='center'>
+  <a href='http://${IP}:3000' target='_blank' rel='noopener noreferrer'>
+    <img alt="Logo" loading="lazy" width="56" height="56" decoding="async" data-nimg="1" class="object-contain p-1.5" style="color:transparent" src="https://avatars.githubusercontent.com/u/906604?v=4&size=64">
+  </a>
+
+  <h2 style='font-size: 24px; margin: 20px 0;'>${APP} LXC</h2>
+
+  <p style='margin: 12px 0;'>
+    <a href='https://github.com/Razzo1987/ProxmoxVE' target='_blank' rel='noopener noreferrer'>
+      <img src='https://img.shields.io/badge/📦-Open%20Script%20Page-00617f' alt='Open script page' />
+    </a>
+  </p>
+</div>
+EOF
+  )
+  pct set "$CTID" -description "$DESCRIPTION"
+}
+
 function update_script() {
   header_info
   check_container_storage
@@ -86,7 +108,7 @@ TAGS="${TAGS//community-script;/}"
 TAGS="${TAGS//community-script/}"
 TAGS="${TAGS#;}"
 build_container
-description
+custom_description
 
 msg_ok "Completed Successfully!\n"
 echo -e "${CREATING}${GN}${APP} setup has been successfully initialized!${CL}"
