@@ -1,0 +1,41 @@
+{
+  "name": "Dummy",
+  "slug": "dummy",
+  "categories": [0],
+  "date_created": "2026-08-28",
+  "type": "ct",
+  "updateable": true,
+  "privileged": false,
+  "interface_port": 3000,
+  "documentation": "https://example.com/dummy-app/docs",
+  "website": "https://example.com/dummy-app",
+  "repository": "https://github.com/expressjs/express",
+  "architectures": ["amd64"],
+  "platforms": ["pve"],
+  "logo": "https://cdn.jsdelivr.net/gh/selfhst/icons@main/webp/nodejs.webp",
+  "description": "Dummy demo application used as a template for Razzo Scripts community CT scripts.",
+  "install_methods": [
+    {
+      "type": "default",
+      "script": "ct/dummy.sh",
+      "config_path": "/opt/dummy/.env",
+      "resources": {
+        "cpu": 1,
+        "ram": 512,
+        "hdd": 4,
+        "os": "Debian",
+        "version": "13"
+      }
+    }
+  ],
+  "default_credentials": {
+    "username": null,
+    "password": null
+  },
+  "notes": [
+    {
+      "text": "This is a dummy/demo script, not a real application. It is a template for building Razzo Scripts CT scripts on top of community-scripts/core.",
+      "type": "info"
+    }
+  ]
+}
