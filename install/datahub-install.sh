@@ -13,9 +13,7 @@ setting_up_container
 network_check
 update_os
 
-# DataHub has no documented bare-metal install path; ensure_docker() is the
-# core helper for addon scripts that ship a Docker Compose stack.
-ensure_docker
+setup_docker
 
 msg_info "Fetching DataHub Quickstart Compose File"
 mkdir -p /opt/datahub

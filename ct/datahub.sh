@@ -20,7 +20,7 @@ APP="DataHub"
 # DataHub ships no bare-metal install path (GMS/Frontend/MySQL/Elasticsearch/
 # Kafka via Docker Compose only) - "docker" tag flags this as an explicit
 # deviation from the usual bare-metal convention.
-var_tags="${var_tags:-razzo-script;data-catalog;docker}"
+var_tags="${var_tags:-razzo-script;data-governance;docker}"
 # GMS (JVM) + Frontend (JVM) + MySQL + Elasticsearch + Kafka all in one CT.
 var_cpu="${var_cpu:-4}"
 var_ram="${var_ram:-12288}"
