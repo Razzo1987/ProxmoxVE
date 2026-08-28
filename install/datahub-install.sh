@@ -27,7 +27,9 @@ msg_ok "Fetched DataHub Quickstart Compose File"
 # defaults either, so an unset value silently becomes an empty image tag.
 # `docker compose` auto-loads .env from the working directory.
 msg_info "Writing DataHub Environment File"
-CLI_VERSION="$(curl -fsSL https://api.github.com/repos/datahub-project/datahub/releases/latest | grep -m1 '"tag_name"' | cut -d'"' -f4 | sed 's/^v//')"
+# jq reads the whole response before exiting; `grep -m1` would close the pipe
+# early and (with pipefail from catch_errors) make curl fail with SIGPIPE.
+CLI_VERSION="$(curl -fsSL https://api.github.com/repos/datahub-project/datahub/releases/latest | jq -r '.tag_name // empty' | sed 's/^v//')"
 cat <<EOF >/opt/datahub/.env
 COMPOSE_PROFILES=quickstart
 DATAHUB_VERSION=quickstart
