@@ -17,7 +17,8 @@ source "$_cs_boot" 2>/dev/null || source <(curl -fsSL "${COMMUNITY_SCRIPTS_CORE_
 # Source: https://example.com/dummy-app
 
 APP="Dummy"
-# Custom branding: "razzo-script" replaces the upstream "community-script" tag.
+# core always prepends "community-script" to TAGS (see ui/advanced.func /
+# ui/defaults.func); "razzo-script" is added alongside it, not in its place.
 var_tags="${var_tags:-razzo-script;demo}"
 var_cpu="${var_cpu:-1}"
 var_ram="${var_ram:-512}"
@@ -31,11 +32,13 @@ var_unprivileged="${var_unprivileged:-1}"
 function custom_header() {
   _cs_clear 2>/dev/null || clear
   cat <<"HEADER"
-  ____  _____ ________  ____
- / __ \/__  / / __  __/ / __ \
-/ /_/ /  / /_/_/_ / /_/ / / / /
-\____/  /_/_/  /_/\____/\____/
-      Razzo Scripts - Dummy
+ ____                                
+|  _ \ _   _ _ __ ___  _ __ ___  _   _ 
+| | | | | | | '_ ` _ \| '_ ` _ \| | | |
+| |_| | |_| | | | | | | | | | | | |_| |
+|____/ \__,_|_| |_| |_|_| |_| |_|\__, |
+                                 |___/ 
+              Razzo Scripts
 HEADER
 }
 
@@ -101,12 +104,6 @@ function update_script() {
 }
 
 start
-# core/ui/{advanced,defaults}.func unconditionally prepend "community-script"
-# to TAGS unless var_tags already contains that substring - not overridable
-# via var_tags, so strip it from the resolved TAGS before creating the CT.
-TAGS="${TAGS//community-script;/}"
-TAGS="${TAGS//community-script/}"
-TAGS="${TAGS#;}"
 build_container
 custom_description
 
