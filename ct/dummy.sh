@@ -59,7 +59,7 @@ function custom_description() {
   <h2 style='font-size: 24px; margin: 20px 0;'>${APP} LXC</h2>
 
   <p style='margin: 12px 0;'>
-    <a href='https://github.com/Razzo1987/ProxmoxVE' target='_blank' rel='noopener noreferrer'>
+    <a href='https://github.com/Razzo1987/ProxmoxVE/blob/main/ct/dummy.sh' target='_blank' rel='noopener noreferrer'>
       <img src='https://img.shields.io/badge/📦-Open%20Script%20Page-00617f' alt='Open script page' />
     </a>
   </p>
