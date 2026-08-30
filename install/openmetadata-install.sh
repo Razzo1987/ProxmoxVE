@@ -54,9 +54,14 @@ msg_info "Installing OpenSearch"
 download_gpg_key "https://artifacts.opensearch.org/publickeys/opensearch-release.pgp" "/etc/apt/keyrings/opensearch.gpg" "dearmor"
 echo "deb [signed-by=/etc/apt/keyrings/opensearch.gpg] https://artifacts.opensearch.org/releases/bundle/opensearch/3.x/apt stable main" >/etc/apt/sources.list.d/opensearch-3.x.list
 $STD apt update
-# DISABLE_SECURITY_PLUGIN (3.7+) skips the demo-cert/auth setup entirely; fine
-# for a single-host instance only reachable from inside this LXC/your LAN.
-DISABLE_SECURITY_PLUGIN=true $STD apt install -y opensearch
+# OpenSearch 3.x post-install attempts to run demo configuration unless we disable it explicitly.
+# We also set a known admin password to avoid the package's security bootstrap complaining about
+# the default password requirement on fresh installs.
+export DEBIAN_FRONTEND=noninteractive
+export DISABLE_INSTALL_DEMO_CONFIG=true
+export DISABLE_SECURITY_PLUGIN=true
+export OPENSEARCH_INITIAL_ADMIN_PASSWORD="${OPENSEARCH_INITIAL_ADMIN_PASSWORD:-Admin123!}"
+$STD apt install -y opensearch
 grep -q '^discovery.type:' /etc/opensearch/opensearch.yml || echo "discovery.type: single-node" >>/etc/opensearch/opensearch.yml
 mkdir -p /etc/opensearch/jvm.options.d
 cat <<EOF >/etc/opensearch/jvm.options.d/heap.options
