@@ -19,6 +19,13 @@ msg_ok "Installed Dependencies"
 
 JAVA_VERSION="21" setup_java
 
+msg_info "Repairing MySQL APT signing key"
+rm -f /etc/apt/trusted.gpg.d/mysql.gpg /etc/apt/keyrings/mysql.gpg
+install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://repo.mysql.com/RPM-GPG-KEY-mysql-2023 | gpg --dearmor -o /etc/apt/keyrings/mysql.gpg
+chmod 0644 /etc/apt/keyrings/mysql.gpg
+msg_ok "Refreshed MySQL repository key"
+
 MYSQL_VERSION="8.0" setup_mysql
 
 msg_info "Creating MySQL Databases"
