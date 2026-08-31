@@ -77,12 +77,14 @@ msg_ok "Installed OpenSearch"
 
 msg_info "Setting up Airflow (Ingestion Orchestrator)"
 PYTHON_VERSION="3.12" setup_uv
+mkdir -p /opt/airflow
 $STD uv venv /opt/airflow/venv --python 3.12
 AIRFLOW_VENV="/opt/airflow/venv/bin"
-mkdir -p /opt/airflow
 export AIRFLOW_HOME=/opt/airflow
+# `uv venv` deliberately ships no pip, so every install goes through `uv pip --python`.
+UV_PIP=(uv pip install --python /opt/airflow/venv/bin/python)
 CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-3.3.0/constraints-3.12.txt"
-$STD "${AIRFLOW_VENV}/pip" install "apache-airflow[mysql]==3.3.0" --constraint "$CONSTRAINT_URL"
+$STD "${UV_PIP[@]}" "apache-airflow[mysql]==3.3.0" --constraint "$CONSTRAINT_URL"
 msg_ok "Installed Airflow"
 
 msg_info "Fetching OpenMetadata"
@@ -104,8 +106,8 @@ msg_info "Installing OpenMetadata Ingestion/Airflow Plugin"
 # openmetadata-ingestion[airflow] ships the same Airflow REST plugin bundled
 # into upstream's ingestion Docker image; falls back to unpinned if the exact
 # server version has no matching ingestion release yet.
-$STD "${AIRFLOW_VENV}/pip" install "openmetadata-ingestion[airflow]==${OM_VERSION}" ||
-  $STD "${AIRFLOW_VENV}/pip" install "openmetadata-ingestion[airflow]"
+$STD "${UV_PIP[@]}" "openmetadata-ingestion[airflow]==${OM_VERSION}" ||
+  $STD "${UV_PIP[@]}" "openmetadata-ingestion[airflow]"
 msg_ok "Installed OpenMetadata Ingestion/Airflow Plugin"
 
 msg_info "Writing OpenMetadata Environment File"
@@ -174,8 +176,8 @@ msg_info "Creating Airflow Service"
 cat <<EOF >/etc/systemd/system/airflow.service
 [Unit]
 Description=Airflow (OpenMetadata Ingestion Orchestrator)
-After=network.target mysql.service
-Requires=mysql.service
+After=network.target mariadb.service
+Requires=mariadb.service
 
 [Service]
 Type=simple
@@ -198,8 +200,8 @@ msg_info "Creating OpenMetadata Service"
 cat <<EOF >/etc/systemd/system/openmetadata.service
 [Unit]
 Description=OpenMetadata Server
-After=network.target mysql.service opensearch.service airflow.service
-Requires=mysql.service opensearch.service
+After=network.target mariadb.service opensearch.service airflow.service
+Requires=mariadb.service opensearch.service
 
 [Service]
 Type=forking
