@@ -12,8 +12,8 @@ _cs_boot="${COMMUNITY_SCRIPTS_CORE_DIR:-$(dirname "${BASH_SOURCE[0]}")/../../cor
 source "$_cs_boot" 2>/dev/null || source <(curl -fsSL "${COMMUNITY_SCRIPTS_CORE_URL:-https://raw.githubusercontent.com/community-scripts/core/main}/core/build.func")
 
 # Copyright (c) 2021-2026 Razzo Scripts
-# Author: YourName (YourGitHubUsername)
-# License: MIT | https://github.com/<your-user>/<your-repo>/raw/main/LICENSE
+# Author: Luca Racchetti (Razzo1987)
+# License: MIT | https://github.com/Razzo1987/ProxmoxVE/raw/main/LICENSE
 # Source: https://docs.open-metadata.org/latest/quick-start/local-docker-deployment
 
 APP="OpenMetadata"

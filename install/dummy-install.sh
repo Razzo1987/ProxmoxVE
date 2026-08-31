@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # Copyright (c) 2021-2026 Razzo Scripts
-# Author: YourName (YourGitHubUsername)
-# License: MIT | https://github.com/<your-user>/<your-repo>/raw/main/LICENSE
+# Author: Luca Racchetti (Razzo1987)
+# License: MIT | https://github.com/Razzo1987/ProxmoxVE/raw/main/LICENSE
 # Source: https://example.com/dummy-app
 
 source /dev/stdin <<<"$FUNCTIONS_FILE_PATH"
