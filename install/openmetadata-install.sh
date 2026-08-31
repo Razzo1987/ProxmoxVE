@@ -14,7 +14,10 @@ network_check
 update_os
 
 msg_info "Installing Dependencies"
-$STD apt install -y unzip lsb-release ca-certificates gnupg2 rsync
+# build-essential/pkg-config/libmariadb-dev are required to build mysqlclient,
+# a hard dependency of apache-airflow[mysql].
+$STD apt install -y unzip lsb-release ca-certificates gnupg2 rsync \
+  build-essential pkg-config libmariadb-dev
 msg_ok "Installed Dependencies"
 
 JAVA_VERSION="21" setup_java
