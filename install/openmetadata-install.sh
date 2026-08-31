@@ -117,7 +117,8 @@ msg_info "Writing OpenMetadata Environment File"
 cat <<EOF >/opt/openmetadata/conf/openmetadata-env.sh
 DB_DRIVER_CLASS="com.mysql.cj.jdbc.Driver"
 DB_SCHEME="mysql"
-DB_PARAMS="allowPublicKeyRetrieval=true&useSSL=true&serverTimezone=UTC"
+# Upstream's example uses useSSL=true for RDS; the local MariaDB has no TLS cert.
+DB_PARAMS="allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC"
 DB_USER="openmetadata_user"
 DB_USER_PASSWORD="${OM_DB_PASS}"
 DB_HOST="localhost"
@@ -146,11 +147,9 @@ cat <<EOF >/opt/airflow/airflow-env.sh
 AIRFLOW_HOME="/opt/airflow"
 AIRFLOW__CORE__EXECUTOR="LocalExecutor"
 AIRFLOW__DATABASE__SQL_ALCHEMY_CONN="mysql://airflow_user:${AIRFLOW_DB_PASS}@localhost:3306/airflow_db"
-AIRFLOW__WEBSERVER__WEB_SERVER_PORT="8080"
-_AIRFLOW_DB_MIGRATE="true"
-_AIRFLOW_WWW_USER_CREATE="true"
-_AIRFLOW_WWW_USER_USERNAME="${AIRFLOW_ADMIN_USER}"
-_AIRFLOW_WWW_USER_PASSWORD="${AIRFLOW_ADMIN_PASSWORD}"
+AIRFLOW__API__PORT="8080"
+AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS="${AIRFLOW_ADMIN_USER}:admin"
+AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS="False"
 EOF
 chmod 600 /opt/airflow/airflow-env.sh
 msg_ok "Wrote Airflow Environment File"
@@ -161,9 +160,12 @@ set -a
 source /opt/airflow/airflow-env.sh
 set +a
 $STD "${AIRFLOW_VENV}/airflow" db migrate
-$STD "${AIRFLOW_VENV}/airflow" users create \
-  --username "$AIRFLOW_ADMIN_USER" --password "$AIRFLOW_ADMIN_PASSWORD" \
-  --firstname Admin --lastname User --role Admin --email admin@openmetadata.local
+# Airflow 3 dropped `airflow users create`; SimpleAuthManager reads this file instead of
+# generating a random password, which is what OpenMetadata authenticates against.
+cat <<EOF >/opt/airflow/simple_auth_manager_passwords.json.generated
+{"${AIRFLOW_ADMIN_USER}": "${AIRFLOW_ADMIN_PASSWORD}"}
+EOF
+chmod 600 /opt/airflow/simple_auth_manager_passwords.json.generated
 msg_ok "Bootstrapped Airflow Database"
 
 msg_info "Bootstrapping OpenMetadata Database"
