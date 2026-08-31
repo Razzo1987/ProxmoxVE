@@ -1,0 +1,61 @@
+{
+  "name": "OpenMetadata-BareMetal",
+  "slug": "openmetadata-baremetal",
+  "categories": [0],
+  "date_created": "2026-08-30",
+  "type": "ct",
+  "updateable": true,
+  "privileged": false,
+  "interface_port": 8585,
+  "documentation": "https://docs.open-metadata.org/v2.0.x/deployment/bare-metal",
+  "website": "https://open-metadata.org",
+  "repository": "https://github.com/open-metadata/OpenMetadata",
+  "architectures": ["amd64"],
+  "platforms": ["pve"],
+  "logo": "https://open-metadata.org/images/logo.png",
+  "description": "OpenMetadata metadata/data-catalog platform, installed bare-metal (Java 21 server, MariaDB, OpenSearch, Airflow ingestion orchestrator in a Python venv). Experimental - upstream documents no complete bare-metal path; prefer the Docker variant.",
+  "install_methods": [
+    {
+      "type": "default",
+      "script": "ct/openmetadata-baremetal.sh",
+      "config_path": "/opt/openmetadata/conf/openmetadata-env.sh",
+      "resources": {
+        "cpu": 4,
+        "ram": 16384,
+        "hdd": 150,
+        "os": "Debian",
+        "version": "13"
+      }
+    }
+  ],
+  "default_credentials": {
+    "username": "admin@open-metadata.org",
+    "password": "admin"
+  },
+  "notes": [
+    {
+      "text": "Known broken: the install hangs indefinitely at 'Bootstrapping OpenMetadata Database' (./bootstrap/openmetadata-ops.sh drop-create). Upstream requires MySQL 8.0.42+ or Postgres 15+ and this script uses Debian's MariaDB, which is not a supported engine. Use ct/openmetadata.sh (Docker) instead.",
+      "type": "error"
+    },
+    {
+      "text": "Airflow bare-metal integration is best-effort: upstream only documents Airflow as a generic requirement, not the exact REST-plugin wiring used inside their Docker image. This script installs Airflow 3.3 + openmetadata-ingestion[airflow] (same plugin package used in the official image) in a Python 3.12 venv, but upstream only declares compatibility with Airflow 2.9/2.10.",
+      "type": "warning"
+    },
+    {
+      "text": "OpenSearch runs with its Security plugin fully disabled (DISABLE_SECURITY_PLUGIN=true) for simplicity - no TLS, no auth on port 9200. Only expose this LXC on a trusted network.",
+      "type": "warning"
+    },
+    {
+      "text": "Not intended for production use as-is: default credentials, no auth on internal services (MySQL/OpenSearch), single-host only.",
+      "type": "warning"
+    },
+    {
+      "text": "First start can take a few minutes while MySQL/OpenSearch/Airflow bootstrap and the server runs its schema migration.",
+      "type": "info"
+    },
+    {
+      "text": "Default login: admin@open-metadata.org / admin. Airflow (ingestion UI) credentials are generated at install time and saved to ~/openmetadata.creds on the container. Change both before exposing this instance beyond your local network.",
+      "type": "info"
+    }
+  ]
+}

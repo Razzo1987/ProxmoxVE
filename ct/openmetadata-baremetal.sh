@@ -14,17 +14,16 @@ source "$_cs_boot" 2>/dev/null || source <(curl -fsSL "${COMMUNITY_SCRIPTS_CORE_
 # Copyright (c) 2021-2026 Razzo Scripts
 # Author: YourName (YourGitHubUsername)
 # License: MIT | https://github.com/<your-user>/<your-repo>/raw/main/LICENSE
-# Source: https://docs.open-metadata.org/latest/quick-start/local-docker-deployment
+# Source: https://docs.open-metadata.org/v2.0.x/deployment/bare-metal
 
-APP="OpenMetadata"
-# Upstream ships no complete bare-metal install path; the release only publishes
-# docker-compose.yml (server/ingestion/db/elasticsearch) - "docker" tag flags this
-# as an explicit deviation from the usual bare-metal convention.
-var_tags="${var_tags:-razzo-script;data-governance;docker}"
-# Server (JVM) + Ingestion (Airflow) + MySQL + Elasticsearch all in one CT.
+# NSAPP (lowercase APP, spaces stripped) selects install/<nsapp>-install.sh, so
+# this name must stay in sync with the file name.
+APP="OpenMetadata-BareMetal"
+var_tags="${var_tags:-razzo-script;data-governance;experimental}"
+# Java 21 (server) + MySQL + OpenSearch + Airflow (Python venv), all in one CT.
 var_cpu="${var_cpu:-4}"
-var_ram="${var_ram:-12288}"
-var_disk="${var_disk:-60}"
+var_ram="${var_ram:-16384}"
+var_disk="${var_disk:-150}"
 var_os="${var_os:-debian}"
 var_version="${var_version:-13}"
 var_unprivileged="${var_unprivileged:-1}"
@@ -58,10 +57,10 @@ function custom_description() {
 
   <h2 style='font-size: 24px; margin: 20px 0;'>${APP} LXC</h2>
 
-  <p style='margin: 12px 0;'>Metadata/data-catalog platform, running via Docker Compose (Server, Ingestion/Airflow, MySQL, Elasticsearch).</p>
+  <p style='margin: 12px 0;'>Metadata/data-catalog platform, bare-metal (Java 21, MariaDB, OpenSearch, Airflow). Unsupported upstream - use the Docker variant instead.</p>
 
   <p style='margin: 12px 0;'>
-    <a href='https://github.com/Razzo1987/ProxmoxVE/blob/main/ct/openmetadata.sh' target='_blank' rel='noopener noreferrer'>
+    <a href='https://github.com/Razzo1987/ProxmoxVE/blob/main/ct/openmetadata-baremetal.sh' target='_blank' rel='noopener noreferrer'>
       <img src='https://img.shields.io/badge/📦-Open%20Script%20Page-00617f' alt='Open script page' />
     </a>
   </p>
@@ -86,23 +85,47 @@ function update_script() {
     msg_error "Could not determine latest OpenMetadata release"
     exit
   fi
-  if [[ "$RELEASE_TAG" == "$(cat ~/.openmetadata_version 2>/dev/null)" ]]; then
-    msg_ok "Already on OpenMetadata ${RELEASE_TAG}"
+  OM_VERSION="${RELEASE_TAG%-release}"
+  CURRENT_VERSION="$(cat ~/.openmetadata_version 2>/dev/null || echo "")"
+  if [[ "$OM_VERSION" == "$CURRENT_VERSION" ]]; then
+    msg_ok "Already on OpenMetadata ${OM_VERSION}"
     exit
   fi
 
-  msg_info "Fetching OpenMetadata ${RELEASE_TAG} Compose File"
-  curl -fsSL -o /opt/openmetadata/docker-compose.yml \
-    "https://github.com/open-metadata/OpenMetadata/releases/download/${RELEASE_TAG}/docker-compose.yml"
-  msg_ok "Fetched OpenMetadata ${RELEASE_TAG} Compose File"
+  msg_info "Stopping Services"
+  systemctl stop openmetadata
+  msg_ok "Stopped Services"
 
-  msg_info "Pulling and Restarting OpenMetadata Containers (this can take a while)"
+  create_backup /opt/openmetadata/conf/openmetadata-env.sh
+
+  msg_info "Fetching OpenMetadata ${OM_VERSION}"
+  curl -fsSL -o /tmp/openmetadata.tar.gz \
+    "https://github.com/open-metadata/OpenMetadata/releases/download/${RELEASE_TAG}/openmetadata-${OM_VERSION}.tar.gz"
+  rm -rf /opt/openmetadata_new
+  mkdir -p /opt/openmetadata_new
+  tar -xzf /tmp/openmetadata.tar.gz --strip-components=1 -C /opt/openmetadata_new
+  rm -f /tmp/openmetadata.tar.gz
+  rsync -a --delete --exclude conf/openmetadata-env.sh /opt/openmetadata_new/ /opt/openmetadata/
+  rm -rf /opt/openmetadata_new
+  msg_ok "Fetched OpenMetadata ${OM_VERSION}"
+
+  restore_backup
+
+  msg_info "Bootstrapping Database"
   cd /opt/openmetadata
-  $STD docker compose -f docker-compose.yml -p openmetadata pull
-  $STD docker compose -f docker-compose.yml -p openmetadata up -d
-  msg_ok "Updated OpenMetadata"
+  set -a
+  # shellcheck disable=SC1091
+  source conf/openmetadata-env.sh
+  set +a
+  $STD ./bootstrap/openmetadata-ops.sh migrate
+  msg_ok "Bootstrapped Database"
 
-  echo "$RELEASE_TAG" >~/.openmetadata_version
+  msg_info "Starting Services"
+  systemctl start openmetadata
+  msg_ok "Started Services"
+
+  echo "$OM_VERSION" >~/.openmetadata_version
+  msg_ok "Updated successfully!"
   exit
 }
 
@@ -112,8 +135,8 @@ custom_description
 
 msg_ok "Completed Successfully!\n"
 echo -e "${CREATING}${GN}${APP} setup has been successfully initialized!${CL}"
-echo -e "${INFO}${YW}This can take several minutes to become fully healthy (MySQL/Elasticsearch bootstrap and schema migration).${CL}"
+echo -e "${INFO}${YW}This can take a few minutes to become fully healthy (MySQL/OpenSearch bootstrap).${CL}"
 echo -e "${INFO}${YW}Access it using the following URL:${CL}"
 echo -e "${GATEWAY}${BGN}http://${IP}:8585${CL}"
 echo -e "${INFO}${YW}Default credentials: admin@open-metadata.org / admin${CL}"
-echo -e "${INFO}${YW}Airflow (ingestion) at http://${IP}:8080 - admin / admin${CL}"
+echo -e "${INFO}${YW}Airflow (ingestion) at http://${IP}:8080 - see ~/openmetadata.creds for the admin password${CL}"
