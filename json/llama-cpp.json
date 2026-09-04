@@ -108,8 +108,8 @@
       "type": "info"
     },
     {
-      "text": "Adapted from the community-scripts/ProxmoxVED script, which is still marked as in test upstream. Verify behaviour before relying on it in production.",
-      "type": "warning"
+      "text": "Adapted from the community-scripts/ProxmoxVED script. Upstream's GitHub 'latest' release no longer ships build tarballs (only a stub asset) - this script instead targets the nightly b<NNNNN> prerelease tag via GH_INCLUDE_PRERELEASE=1, which is where the real binaries are published.",
+      "type": "info"
     }
   ]
 }

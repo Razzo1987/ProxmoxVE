@@ -63,7 +63,9 @@ msg_ok "Installed Dependencies"
 
 setup_hwaccel
 
-fetch_and_deploy_gh_release "llama-cpp" "ggml-org/llama.cpp" "prebuild" "latest" "/opt/llama-cpp" "$LLAMA_ASSET"
+# Upstream's "latest" GitHub release carries no build tarballs anymore (only a
+# stub asset) - the real binaries live under nightly b<NNNNN> prerelease tags.
+GH_INCLUDE_PRERELEASE=1 fetch_and_deploy_gh_release "llama-cpp" "ggml-org/llama.cpp" "prebuild" "latest" "/opt/llama-cpp" "$LLAMA_ASSET"
 
 msg_info "Configuring llama.cpp"
 chmod +x /opt/llama-cpp/llama-*

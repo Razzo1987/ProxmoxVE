@@ -39,16 +39,26 @@ export var_offload_layers="${var_offload_layers:-}"
 export var_api_key="${var_api_key:-}"
 export INSTALL_NVIDIA_DRIVERS="${INSTALL_NVIDIA_DRIVERS:-yes}"
 
+# Upstream's actual "latest" GitHub release ships no build tarballs anymore
+# (only a stub asset); the real binaries are published under separate nightly
+# b<NNNNN> tags marked as prereleases. This is also why community-scripts
+# disabled their own copy of this script; GH_INCLUDE_PRERELEASE=1 targets the
+# nightly tag instead and resolves the actual problem, so we bypass that
+# disabled-slug guard rather than blocking our own (fixed) copy on it.
+export GH_INCLUDE_PRERELEASE="${GH_INCLUDE_PRERELEASE:-1}"
+export var_ignore_disable="${var_ignore_disable:-1}"
+
 # Local custom header, printed instead of relying on the upstream banner
 # (core/headers/ct/llama-cpp would not exist for our own copy of the app).
 function custom_header() {
   _cs_clear 2>/dev/null || clear
   cat <<"HEADER"
-  _  _                              
- | || |__ _ _ __  __ _  __ _____ _ __ _ __
- | || / _` | '  \/ _` |/ _/ _ \ '_ \ '_ \
- |_||_\__,_|_|_|_\__,_|\__\___/ .__/ .__/
-                               |_|  |_|
+ _ _
+| | | __ _ _ __ ___   __ _   ___ _ __  _ __
+| | |/ _` | '_ ` _ \ / _` | / __| '_ \| '_ \
+| | | (_| | | | | | | (_| || (__| |_) | |_) |
+|_|_|\__,_|_| |_| |_|\__,_(_)___| .__/| .__/
+                                |_|   |_|
               Razzo Scripts
 HEADER
 }
@@ -90,7 +100,7 @@ function update_script() {
     exit
   fi
 
-  if check_for_gh_release "llama-cpp" "ggml-org/llama.cpp"; then
+  if GH_INCLUDE_PRERELEASE=1 check_for_gh_release "llama-cpp" "ggml-org/llama.cpp"; then
     msg_info "Stopping Service"
     systemctl stop llama-cpp
     msg_ok "Stopped Service"
@@ -107,7 +117,7 @@ function update_script() {
     *) LLAMA_ASSET="llama-*-bin-ubuntu-$(arch_resolve x64 arm64).tar.gz" ;;
     esac
 
-    CLEAN_INSTALL=1 fetch_and_deploy_gh_release "llama-cpp" "ggml-org/llama.cpp" "prebuild" "latest" "/opt/llama-cpp" "$LLAMA_ASSET"
+    GH_INCLUDE_PRERELEASE=1 CLEAN_INSTALL=1 fetch_and_deploy_gh_release "llama-cpp" "ggml-org/llama.cpp" "prebuild" "latest" "/opt/llama-cpp" "$LLAMA_ASSET"
     chmod +x /opt/llama-cpp/llama-*
 
     msg_info "Starting Service"
