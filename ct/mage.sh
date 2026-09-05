@@ -99,6 +99,8 @@ function update_script() {
 
   msg_info "Updating Mage"
   $STD uv pip install --python /opt/mage_venv/bin/python --upgrade mage-ai
+  $STD uv pip uninstall --python /opt/mage_venv/bin/python polars
+  $STD uv pip install --python /opt/mage_venv/bin/python polars-lts-cpu
   msg_ok "Updated Mage"
 
   msg_info "Starting Service"

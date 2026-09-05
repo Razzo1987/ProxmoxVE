@@ -29,6 +29,8 @@ msg_info "Installing Mage"
 mkdir -p /opt/mage_data
 $STD uv venv --python "${var_python_version}" /opt/mage_venv
 $STD uv pip install --python /opt/mage_venv/bin/python mage-ai
+$STD uv pip uninstall --python /opt/mage_venv/bin/python polars
+$STD uv pip install --python /opt/mage_venv/bin/python polars-lts-cpu
 msg_ok "Installed Mage"
 
 msg_info "Configuring Mage"

@@ -70,6 +70,10 @@
       "type": "info"
     },
     {
+      "text": "The script replaces Mage's default polars package with polars-lts-cpu, because older CPUs without AVX/AVX2/FMA can crash with SIGILL during Mage startup or project initialization.",
+      "type": "info"
+    },
+    {
       "text": "Default login for Mage OSS 0.9.78+ is admin@admin.com / admin. Change the password after first login before exposing the instance beyond a trusted network.",
       "type": "warning"
     },
