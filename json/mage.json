@@ -1,0 +1,81 @@
+{
+  "name": "Mage",
+  "slug": "mage",
+  "categories": [
+    20
+  ],
+  "date_created": "2026-09-05",
+  "type": "ct",
+  "updateable": true,
+  "privileged": false,
+  "interface_port": 6789,
+  "documentation": "https://docs.mage.ai/getting-started/setup",
+  "website": "https://www.mage.ai",
+  "repository": "https://github.com/mage-ai/mage-ai",
+  "platforms": [
+    "pve"
+  ],
+  "logo": "https://cdn.jsdelivr.net/gh/selfhst/icons@main/webp/mage.webp",
+  "description": "Mage OSS is a self-hosted workspace for building, running and scheduling data pipelines in Python, SQL and R. This script installs Mage bare-metal with Python and stores the project and runtime data outside the virtual environment.",
+  "install_methods": [
+    {
+      "type": "default",
+      "script": "ct/mage.sh",
+      "config_path": "/opt/mage.env",
+      "resources": {
+        "cpu": 2,
+        "ram": 4096,
+        "hdd": 20,
+        "os": "Debian",
+        "version": "13"
+      }
+    }
+  ],
+  "default_credentials": {
+    "username": "admin@admin.com",
+    "password": "admin"
+  },
+  "app_vars": [
+    {
+      "name": "var_port",
+      "label": "Port",
+      "type": "number",
+      "default": "6789"
+    },
+    {
+      "name": "var_project_name",
+      "label": "Project Name",
+      "type": "text",
+      "default": "mage_project"
+    },
+    {
+      "name": "var_python_version",
+      "label": "Python Version",
+      "type": "select",
+      "options": [
+        "3.10",
+        "3.11",
+        "3.12"
+      ],
+      "default": "3.12"
+    }
+  ],
+  "notes": [
+    {
+      "text": "Mage is installed bare-metal with pip inside /opt/mage_venv using uv. Project files and Mage data live in /opt/mage_data so updates can replace packages without touching user pipelines.",
+      "type": "info"
+    },
+    {
+      "text": "Default login for Mage OSS 0.9.78+ is admin@admin.com / admin. Change the password after first login before exposing the instance beyond a trusted network.",
+      "type": "warning"
+    },
+    {
+      "text": "The default orchestration database is local SQLite. For heavier production use, configure MAGE_DATABASE_CONNECTION_URL in /opt/mage.env to point at PostgreSQL as documented by Mage.",
+      "type": "info"
+    },
+    {
+      "text": "Optional connectors are installed from Mage itself, for example by adding packages such as mage-ai[postgres], mage-ai[dbt] or mage-ai[s3] to the project requirements and restarting the service.",
+      "type": "info"
+    }
+  ]
+}
