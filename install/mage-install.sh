@@ -23,11 +23,11 @@ $STD apt install -y \
   git
 msg_ok "Installed Dependencies"
 
-UV_PYTHON="${var_python_version}" setup_uv
+PYTHON_VERSION="${var_python_version}" setup_uv
 
 msg_info "Installing Mage"
 mkdir -p /opt/mage_data
-$STD uv venv /opt/mage_venv
+$STD uv venv --python "${var_python_version}" /opt/mage_venv
 $STD uv pip install --python /opt/mage_venv/bin/python mage-ai
 msg_ok "Installed Mage"
 

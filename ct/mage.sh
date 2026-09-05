@@ -88,7 +88,14 @@ function update_script() {
   systemctl stop mage
   msg_ok "Stopped Service"
 
-  UV_PYTHON="${var_python_version}" setup_uv
+  PYTHON_VERSION="${var_python_version}" setup_uv
+
+  if ! /opt/mage_venv/bin/python -c "import sys; raise SystemExit(0 if f'{sys.version_info.major}.{sys.version_info.minor}' == '${var_python_version}' else 1)"; then
+    msg_info "Rebuilding Mage Virtual Environment"
+    rm -rf /opt/mage_venv
+    $STD uv venv --python "${var_python_version}" /opt/mage_venv
+    msg_ok "Rebuilt Mage Virtual Environment"
+  fi
 
   msg_info "Updating Mage"
   $STD uv pip install --python /opt/mage_venv/bin/python --upgrade mage-ai

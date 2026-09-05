@@ -66,6 +66,10 @@
       "type": "info"
     },
     {
+      "text": "Python 3.12 is the default because Debian 13's system Python 3.13 can force native builds of dependencies such as aiohttp. The script installs the requested Python version via uv and creates the virtual environment with that interpreter.",
+      "type": "info"
+    },
+    {
       "text": "Default login for Mage OSS 0.9.78+ is admin@admin.com / admin. Change the password after first login before exposing the instance beyond a trusted network.",
       "type": "warning"
     },
