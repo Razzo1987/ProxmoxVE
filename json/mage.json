@@ -74,6 +74,14 @@
       "type": "info"
     },
     {
+      "text": "The script upgrades Jinja2 to 3.1.5 or newer after installing Mage because current Pandas versions require it when Mage imports pandas.io.formats.style_render.",
+      "type": "info"
+    },
+    {
+      "text": "The script pins Pandas below 3 because Mage 0.9.79 imports an internal pandas.io.formats.style_render symbol that was removed in Pandas 3.x.",
+      "type": "info"
+    },
+    {
       "text": "Default login for Mage OSS 0.9.78+ is admin@admin.com / admin. Change the password after first login before exposing the instance beyond a trusted network.",
       "type": "warning"
     },

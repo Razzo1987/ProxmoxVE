@@ -99,12 +99,25 @@ function update_script() {
 
   msg_info "Updating Mage"
   $STD uv pip install --python /opt/mage_venv/bin/python --upgrade mage-ai
+  $STD uv pip install --python /opt/mage_venv/bin/python --upgrade "jinja2>=3.1.5"
+  $STD uv pip install --python /opt/mage_venv/bin/python --upgrade "pandas>=2.1,<3"
   $STD uv pip uninstall --python /opt/mage_venv/bin/python polars
   $STD uv pip install --python /opt/mage_venv/bin/python polars-lts-cpu
   msg_ok "Updated Mage"
 
   msg_info "Starting Service"
   systemctl start mage
+  for _ in {1..30}; do
+    if curl -fsS "http://127.0.0.1:${var_port}/api/status" >/dev/null 2>&1; then
+      break
+    fi
+    sleep 2
+  done
+  if ! systemctl is-active --quiet mage || ! curl -fsS "http://127.0.0.1:${var_port}/api/status" >/dev/null 2>&1; then
+    journalctl -u mage -n 80 --no-pager
+    msg_error "Mage service failed to become reachable on port ${var_port}"
+    exit 150
+  fi
   msg_ok "Started Service"
   msg_ok "Updated successfully!"
   exit
