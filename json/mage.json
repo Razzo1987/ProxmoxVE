@@ -82,6 +82,10 @@
       "type": "info"
     },
     {
+      "text": "The script pins NumPy below 2 because Mage 0.9.79 still references NumPy 1.x aliases such as np.float_, which were removed in NumPy 2.0.",
+      "type": "info"
+    },
+    {
       "text": "Default login for Mage OSS 0.9.78+ is admin@admin.com / admin. Change the password after first login before exposing the instance beyond a trusted network.",
       "type": "warning"
     },

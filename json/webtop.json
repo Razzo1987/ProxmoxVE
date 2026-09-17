@@ -1,0 +1,76 @@
+{
+  "name": "Webtop",
+  "slug": "webtop",
+  "categories": [2, 20],
+  "date_created": "2026-09-16",
+  "type": "ct",
+  "updateable": true,
+  "privileged": false,
+  "interface_port": 8444,
+  "documentation": "https://www.kasmweb.com/kasmvnc/docs/latest/index.html",
+  "website": "https://www.kasmweb.com/kasmvnc/",
+  "repository": "https://github.com/kasmtech/KasmVNC",
+  "platforms": ["pve"],
+  "logo": "https://cdn.jsdelivr.net/gh/selfhst/icons@main/webp/webtop.webp",
+  "description": "Browser-accessible XFCE desktop powered by KasmVNC, Firefox ESR, and terminal tools for self-hosted remote browsing without Docker.",
+  "install_methods": [
+    {
+      "type": "default",
+      "script": "ct/webtop.sh",
+      "config_path": "/opt/webtop/.env",
+      "resources": {
+        "cpu": 2,
+        "ram": 2048,
+        "hdd": 10,
+        "os": "Debian",
+        "version": "13"
+      }
+    }
+  ],
+  "app_vars": [
+    {
+      "name": "var_webtop_user",
+      "label": "Webtop Username",
+      "type": "text",
+      "default": "webtop"
+    },
+    {
+      "name": "var_webtop_pass",
+      "label": "Webtop Password",
+      "type": "password",
+      "secret": true
+    },
+    {
+      "name": "var_webtop_port",
+      "label": "KasmVNC Web Port",
+      "type": "number",
+      "default": 8444
+    },
+    {
+      "name": "var_webtop_width",
+      "label": "Desktop Width",
+      "type": "number",
+      "default": 1280
+    },
+    {
+      "name": "var_webtop_height",
+      "label": "Desktop Height",
+      "type": "number",
+      "default": 720
+    }
+  ],
+  "default_credentials": {
+    "username": "webtop",
+    "password": null
+  },
+  "notes": [
+    {
+      "text": "If this container is exposed to the public web, put strong authentication in front of it, such as a TLS reverse proxy with Authentik or Authelia. A remote browser with LAN access is effectively SSRF-as-a-service if left open.",
+      "type": "warning"
+    },
+    {
+      "text": "KasmVNC arm64 release assets exist, but arm64 has not been verified in this repository yet, so the CT script leaves var_arm64 unset.",
+      "type": "info"
+    }
+  ]
+}

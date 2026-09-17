@@ -99,8 +99,7 @@ function update_script() {
 
   msg_info "Updating Mage"
   $STD uv pip install --python /opt/mage_venv/bin/python --upgrade mage-ai
-  $STD uv pip install --python /opt/mage_venv/bin/python --upgrade "jinja2>=3.1.5"
-  $STD uv pip install --python /opt/mage_venv/bin/python --upgrade "pandas>=2.1,<3"
+  $STD uv pip install --python /opt/mage_venv/bin/python --upgrade "jinja2>=3.1.5" "numpy>=1.26,<2" "pandas>=2.1,<3"
   $STD uv pip uninstall --python /opt/mage_venv/bin/python polars
   $STD uv pip install --python /opt/mage_venv/bin/python polars-lts-cpu
   msg_ok "Updated Mage"
