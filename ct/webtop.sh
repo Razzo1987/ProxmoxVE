@@ -95,10 +95,16 @@ function update_script() {
 
     ARCH=$(dpkg --print-architecture)
     rm -f /tmp/kasmvncserver_trixie_*_"${ARCH}".deb
-    CLEAN_INSTALL=1 fetch_and_deploy_gh_release "kasmvncserver" "kasmtech/KasmVNC" "singlefile" "latest" "/tmp" "kasmvncserver_trixie_*_${ARCH}.deb"
+    CLEAN_INSTALL=1 USE_ORIGINAL_FILENAME=true fetch_and_deploy_gh_release "kasmvncserver" "kasmtech/KasmVNC" "singlefile" "latest" "/tmp" "kasmvncserver_trixie_*_${ARCH}.deb"
+
+    KASMVNC_DEB=$(compgen -G "/tmp/kasmvncserver_trixie_*_${ARCH}.deb" | head -n1)
+    if [[ -z "${KASMVNC_DEB}" ]]; then
+      msg_error "KasmVNC .deb package not found after download"
+      exit 1
+    fi
 
     msg_info "Installing KasmVNC Package"
-    $STD apt install -y /tmp/kasmvncserver_trixie_*_"${ARCH}".deb
+    $STD apt install -y "${KASMVNC_DEB}"
     msg_ok "Installed KasmVNC Package"
 
     restore_backup
