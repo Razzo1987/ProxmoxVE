@@ -57,9 +57,14 @@ catch_errors
 # Replaces core's description() (community-scripts branded HTML) with our own.
 function custom_description() {
   IP=$(pct exec "$CTID" ip a s dev eth0 | awk '/inet / {print $2}' | cut -d/ -f1)
+  # var_webtop_port on the host may be empty (interactive prompt), so read the
+  # actual port the install script settled on from inside the container.
+  local port
+  port=$(pct exec "$CTID" -- grep -m1 '^WEBTOP_PORT=' /opt/webtop/.env 2>/dev/null | cut -d= -f2-)
+  port="${port:-8444}"
   DESCRIPTION=$(cat <<EOF
 <div align='center'>
-  <a href='https://${IP}:${var_webtop_port:-8444}' target='_blank' rel='noopener noreferrer'>
+  <a href='https://${IP}:${port}' target='_blank' rel='noopener noreferrer'>
     <img alt="Logo" loading="lazy" width="56" height="56" decoding="async" data-nimg="1" class="object-contain p-1.5" style="color:transparent" src="https://cdn.jsdelivr.net/gh/selfhst/icons@main/webp/webtop.webp">
   </a>
 
@@ -121,7 +126,19 @@ start
 build_container
 custom_description
 
+# var_webtop_* on the host may be empty (interactive prompt / random password
+# generated inside the container), so the actual values only exist in
+# /opt/webtop/.env inside the container. Read them back for the footer instead
+# of trusting the host-side variables.
+WEBTOP_ENV=$(pct exec "$CTID" -- cat /opt/webtop/.env 2>/dev/null)
+WEBTOP_USER=$(echo "$WEBTOP_ENV" | grep -m1 '^WEBTOP_USER=' | cut -d= -f2-)
+WEBTOP_PASS=$(echo "$WEBTOP_ENV" | grep -m1 '^WEBTOP_PASS=' | cut -d= -f2-)
+WEBTOP_PORT=$(echo "$WEBTOP_ENV" | grep -m1 '^WEBTOP_PORT=' | cut -d= -f2-)
+WEBTOP_PORT="${WEBTOP_PORT:-8444}"
+
 msg_ok "Completed Successfully!\n"
 echo -e "${CREATING}${GN}${APP} setup has been successfully initialized!${CL}"
+echo -e "${INFO}${YW}KasmVNC username: ${WEBTOP_USER}${CL}"
+echo -e "${INFO}${YW}KasmVNC password: ${WEBTOP_PASS}${CL}"
 echo -e "${INFO}${YW}Access it using the following URL:${CL}"
-echo -e "${GATEWAY}${BGN}https://${IP}:${var_webtop_port:-8444}${CL}"
+echo -e "${GATEWAY}${BGN}https://${IP}:${WEBTOP_PORT}${CL}"
