@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# Scripts root: when curl-piped, build.func cannot infer where THIS script came
+# from (no local path to walk), so it would default to community-scripts/ProxmoxVED
+# and 404 on install/. Pin it to this repo unless the caller already overrode it
+# (e.g. to test a branch: COMMUNITY_SCRIPTS_URL=... bash -c "$(curl ...)").
+export COMMUNITY_SCRIPTS_URL="${COMMUNITY_SCRIPTS_URL:-https://raw.githubusercontent.com/Razzo1987/ProxmoxVE/main}"
+
+# Engine comes from community-scripts/core; this repo only ships the scripts.
+# Local checkout wins (COMMUNITY_SCRIPTS_CORE_DIR, else a sibling ../core), so a
+# fork/branch of core can be tested without touching this file.
+_cs_boot="${COMMUNITY_SCRIPTS_CORE_DIR:-$(dirname "${BASH_SOURCE[0]}")/../../core}/core/build.func"
+source "$_cs_boot" 2>/dev/null || source <(curl -fsSL "${COMMUNITY_SCRIPTS_CORE_URL:-https://raw.githubusercontent.com/community-scripts/core/main}/core/build.func")
+
+# Copyright (c) 2021-2026 Razzo Scripts
+# Author: Luca Racchetti (Razzo1987)
+# License: MIT | https://github.com/Razzo1987/ProxmoxVE/raw/main/LICENSE
+# Source: https://github.com/linuxserver/docker-webtop
+
+APP="Webtop-Docker"
+# Deliberate deviation from the bare-metal convention: the official
+# lscr.io/linuxserver/webtop image (Selkies stack) is used for easier
+# maintenance. The bare-metal variant lives in ct/webtop.sh.
+var_tags="${var_tags:-razzo-script;remote-desktop;browser;docker}"
+var_cpu="${var_cpu:-2}"
+var_ram="${var_ram:-4096}"
+var_disk="${var_disk:-20}"
+var_os="${var_os:-debian}"
+var_version="${var_version:-13}"
+var_unprivileged="${var_unprivileged:-1}"
+#var_arm64="${var_arm64:-no}" # unset = ask the user; set yes/no only when verified
+
+export var_webtop_user="${var_webtop_user:-}"
+export var_webtop_pass="${var_webtop_pass:-}"
+export var_webtop_port="${var_webtop_port:-}"
+export var_webtop_flavor="${var_webtop_flavor:-}"
+
+function custom_header() {
+  _cs_clear 2>/dev/null || clear
+  cat <<"HEADER"
+__        __   _     _
+\ \      / /__| |__ | |_ ___  _ __
+ \ \ /\ / / _ \ '_ \| __/ _ \| '_ \
+  \ V  V /  __/ |_) | || (_) | |_) |
+   \_/\_/ \___|_.__/ \__\___/| .__/
+                     Docker  |_|
+              Razzo Scripts
+HEADER
+}
+
+custom_header
+variables
+color
+catch_errors
+
+# Replaces core's description() (community-scripts branded HTML) with our own.
+function custom_description() {
+  IP=$(pct exec "$CTID" ip a s dev eth0 | awk '/inet / {print $2}' | cut -d/ -f1)
+  # var_webtop_port on the host may be empty (interactive prompt), so read the
+  # port the install script settled on from inside the container.
+  local port
+  port=$(pct exec "$CTID" -- grep -m1 '^WEBTOP_PORT=' /opt/webtop-docker/.env 2>/dev/null | cut -d= -f2-)
+  port="${port:-3001}"
+  DESCRIPTION=$(cat <<EOF
+<div align='center'>
+  <a href='https://${IP}:${port}' target='_blank' rel='noopener noreferrer'>
+    <img alt="Logo" loading="lazy" width="56" height="56" decoding="async" data-nimg="1" class="object-contain p-1.5" style="color:transparent" src="https://cdn.jsdelivr.net/gh/selfhst/icons@main/webp/webtop.webp">
+  </a>
+
+  <h2 style='font-size: 24px; margin: 20px 0;'>${APP} LXC</h2>
+
+  <p style='margin: 12px 0;'>LinuxServer.io Webtop (Selkies) desktop in the browser, running via Docker Compose.</p>
+
+  <p style='margin: 12px 0;'>
+    <a href='https://github.com/Razzo1987/ProxmoxVE/blob/main/ct/webtop-docker.sh' target='_blank' rel='noopener noreferrer'>
+      <img src='https://img.shields.io/badge/📦-Open%20Script%20Page-00617f' alt='Open script page' />
+    </a>
+  </p>
+</div>
+EOF
+  )
+  pct set "$CTID" -description "$DESCRIPTION"
+}
+
+function update_script() {
+  header_info
+  check_container_storage
+  check_container_resources
+
+  if [[ ! -f /opt/webtop-docker/docker-compose.yml ]]; then
+    msg_error "No ${APP} Installation Found!"
+    exit
+  fi
+
+  # The image is a rolling tag (no single GitHub release to track), so
+  # updating = pull + recreate. /config lives on a bind mount and survives.
+  msg_info "Pulling latest Webtop Image"
+  cd /opt/webtop-docker
+  $STD docker compose pull
+  msg_ok "Pulled latest Webtop Image"
+
+  msg_info "Recreating Webtop Container"
+  $STD docker compose up -d
+  $STD docker image prune -f
+  msg_ok "Recreated Webtop Container"
+  msg_ok "Updated successfully!"
+  exit
+}
+
+start
+build_container
+custom_description
+
+# var_webtop_* on the host may be empty (interactive prompt / random password
+# generated inside the container): read the real values back from the CT.
+WEBTOP_ENV=$(pct exec "$CTID" -- cat /opt/webtop-docker/.env 2>/dev/null)
+WEBTOP_USER=$(echo "$WEBTOP_ENV" | grep -m1 '^CUSTOM_USER=' | cut -d= -f2-)
+WEBTOP_PASS=$(echo "$WEBTOP_ENV" | grep -m1 '^PASSWORD=' | cut -d= -f2-)
+WEBTOP_PORT=$(echo "$WEBTOP_ENV" | grep -m1 '^WEBTOP_PORT=' | cut -d= -f2-)
+WEBTOP_PORT="${WEBTOP_PORT:-3001}"
+
+msg_ok "Completed Successfully!\n"
+echo -e "${CREATING}${GN}${APP} setup has been successfully initialized!${CL}"
+echo -e "${INFO}${YW}Username: ${WEBTOP_USER}${CL}"
+echo -e "${INFO}${YW}Password: ${WEBTOP_PASS}${CL}"
+echo -e "${INFO}${YW}Access it using the following URL (self-signed certificate):${CL}"
+echo -e "${GATEWAY}${BGN}https://${IP}:${WEBTOP_PORT}${CL}"

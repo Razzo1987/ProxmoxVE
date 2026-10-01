@@ -1,0 +1,99 @@
+{
+  "name": "Webtop (Docker)",
+  "slug": "webtop-docker",
+  "categories": [2, 20],
+  "date_created": "2026-09-18",
+  "type": "ct",
+  "updateable": true,
+  "privileged": false,
+  "interface_port": 3001,
+  "documentation": "https://docs.linuxserver.io/images/docker-webtop/",
+  "website": "https://www.linuxserver.io/",
+  "repository": "https://github.com/linuxserver/docker-webtop",
+  "platforms": ["pve"],
+  "logo": "https://cdn.jsdelivr.net/gh/selfhst/icons@main/webp/webtop.webp",
+  "description": "Full Linux desktop (XFCE, KDE, MATE, i3...) in the browser using the official LinuxServer.io Webtop image with the Selkies streaming stack: audio, microphone, clipboard, file transfers and hardware-friendly codecs out of the box. Docker-based variant of the Webtop script, easier to keep up to date.",
+  "install_methods": [
+    {
+      "type": "default",
+      "script": "ct/webtop-docker.sh",
+      "config_path": "/opt/webtop-docker/.env",
+      "resources": {
+        "cpu": 2,
+        "ram": 4096,
+        "hdd": 20,
+        "os": "Debian",
+        "version": "13"
+      }
+    }
+  ],
+  "app_vars": [
+    {
+      "name": "var_webtop_user",
+      "label": "Webtop Username",
+      "type": "text",
+      "default": "webtop"
+    },
+    {
+      "name": "var_webtop_pass",
+      "label": "Webtop Password",
+      "type": "password",
+      "secret": true
+    },
+    {
+      "name": "var_webtop_port",
+      "label": "Webtop HTTPS Port",
+      "type": "number",
+      "default": 3001
+    },
+    {
+      "name": "var_webtop_flavor",
+      "label": "Desktop Flavor (image tag)",
+      "type": "select",
+      "default": "debian-xfce",
+      "options": [
+        "debian-xfce",
+        "ubuntu-xfce",
+        "latest",
+        "debian-kde",
+        "ubuntu-kde",
+        "debian-mate",
+        "ubuntu-mate",
+        "debian-i3",
+        "ubuntu-i3",
+        "fedora-xfce",
+        "arch-xfce"
+      ]
+    }
+  ],
+  "default_credentials": {
+    "username": "webtop",
+    "password": null
+  },
+  "notes": [
+    {
+      "text": "Uses Docker inside the LXC on purpose (official lscr.io/linuxserver/webtop image) to make maintenance trivial: updates are a 'docker compose pull && up -d'. Use the 'webtop' script for the bare-metal, Docker-free variant.",
+      "type": "warning"
+    },
+    {
+      "text": "The desktop terminal has passwordless sudo and the container can reach your LAN. Built-in HTTP basic auth is only adequate for a trusted LAN: for public exposure put a reverse proxy with real authentication (Authentik, Authelia, OAuth2 proxy) in front of it.",
+      "type": "warning"
+    },
+    {
+      "text": "Port 3001 serves HTTPS with a self-signed certificate (HTTPS is required for audio/video). When proxying with Nginx Proxy Manager use scheme https and 'proxy_ssl_verify off', with WebSocket support enabled.",
+      "type": "info"
+    },
+    {
+      "text": "Settings live in /opt/webtop-docker/.env: add any SELKIES_*, LC_ALL (e.g. it_IT.UTF-8) or HARDEN_DESKTOP option there and run 'docker compose up -d' in /opt/webtop-docker. The desktop home (/config) is persisted in /opt/webtop-docker/config.",
+      "type": "info"
+    },
+    {
+      "text": "The debian-xfce/ubuntu-xfce flavors ship Chromium as the web browser, not Firefox. 'latest' is Alpine XFCE.",
+      "type": "info"
+    },
+    {
+      "text": "The image is published for arm64 too, but arm64 has not been verified in this repository yet, so the CT script leaves var_arm64 unset.",
+      "type": "info"
+    }
+  ]
+}
