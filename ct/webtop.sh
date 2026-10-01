@@ -117,7 +117,26 @@ function update_script() {
     msg_info "Starting Service"
     systemctl start webtop
     msg_ok "Started Service"
-    msg_ok "Updated successfully!"
+    msg_ok "Updated KasmVNC successfully!"
+  fi
+
+  if check_for_gh_release "kclient" "linuxserver/kclient"; then
+    msg_info "Stopping Service"
+    systemctl stop webtop-kclient
+    msg_ok "Stopped Service"
+
+    CLEAN_INSTALL=1 fetch_and_deploy_gh_release "kclient" "linuxserver/kclient" "tarball"
+
+    msg_info "Setting up kclient"
+    cd /opt/kclient
+    sed -i "s/http.listen(6900);/http.listen(6900, '127.0.0.1');/" index.js
+    $STD npm install --omit=dev
+    msg_ok "Set up kclient"
+
+    msg_info "Starting Service"
+    systemctl start webtop-kclient
+    msg_ok "Started Service"
+    msg_ok "Updated kclient successfully!"
   fi
   exit
 }

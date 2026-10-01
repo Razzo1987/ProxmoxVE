@@ -12,7 +12,7 @@
   "repository": "https://github.com/kasmtech/KasmVNC",
   "platforms": ["pve"],
   "logo": "https://cdn.jsdelivr.net/gh/selfhst/icons@main/webp/webtop.webp",
-  "description": "Browser-accessible XFCE desktop powered by KasmVNC, Firefox ESR, and terminal tools for self-hosted remote browsing without Docker.",
+  "description": "Browser-accessible XFCE desktop powered by KasmVNC, Firefox ESR, and terminal tools for self-hosted remote browsing without Docker. Audio, microphone and a web file manager are provided by LinuxServer's kclient behind nginx.",
   "install_methods": [
     {
       "type": "default",
@@ -66,6 +66,14 @@
   "notes": [
     {
       "text": "If this container is exposed to the public web, put strong authentication in front of it, such as a TLS reverse proxy with Authentik or Authelia. A remote browser with LAN access is effectively SSRF-as-a-service if left open.",
+      "type": "warning"
+    },
+    {
+      "text": "Audio is off by default in the browser: click the speaker icon in the side bar to enable it (the microphone icon forwards your mic).",
+      "type": "info"
+    },
+    {
+      "text": "The web file manager exposes the container filesystem starting from /root to anyone who passes the login.",
       "type": "warning"
     },
     {
