@@ -1,0 +1,78 @@
+{
+  "name": "MC GamerTime",
+  "slug": "mc-gamertime",
+  "categories": [24],
+  "date_created": "2026-10-04",
+  "type": "ct",
+  "updateable": true,
+  "privileged": false,
+  "interface_port": 443,
+  "documentation": "https://mcgamertime-docs.drmaggi.com/self-hosting/quickstart/",
+  "website": "https://github.com/Strandgaard96/mc-gamertime",
+  "repository": "https://github.com/Strandgaard96/mc-gamertime",
+  "logo": "https://cdn.jsdelivr.net/gh/selfhst/icons@main/webp/mc-gamertime.webp",
+  "description": "Board game inventory, session log, Elo leaderboard, player profiles and achievements. Native React/FastAPI deployment with SQLite and local media storage, maintained by Razzo Scripts.",
+  "install_methods": [
+    {
+      "type": "default",
+      "script": "ct/mc-gamertime.sh",
+      "config_path": "/opt/mc-gamertime_data/.env",
+      "resources": {
+        "cpu": 2,
+        "ram": 4096,
+        "hdd": 10,
+        "os": "Debian",
+        "version": "13"
+      }
+    }
+  ],
+  "default_credentials": {
+    "username": "admin",
+    "password": null
+  },
+  "app_vars": [
+    {
+      "name": "var_admin_user",
+      "label": "Initial Admin Username",
+      "type": "text",
+      "default": "admin",
+      "help": "3-32 ASCII letters, digits, dots, underscores or hyphens."
+    },
+    {
+      "name": "var_admin_password",
+      "label": "Initial Admin Password",
+      "type": "password",
+      "secret": true,
+      "help": "12-72 UTF-8 bytes, no control characters. Leave empty to generate a random password printed after installation."
+    },
+    {
+      "name": "var_bgg_token",
+      "label": "Board Game Geek API Token",
+      "type": "password",
+      "secret": true,
+      "help": "Optional; game search is disabled without a BGG token. Can be added to the configuration later."
+    }
+  ],
+  "notes": [
+    {
+      "text": "Testing: syntax and mocked behavior can be checked locally; a real Proxmox VE installation, browser login, runtime dependency builds and ARM64 have not been verified. Native deployment reproduces the upstream Dockerfile and entrypoint, not an upstream-supported bare-metal installer.",
+      "type": "warning"
+    },
+    {
+      "text": "Access https://<container-IP> on port 443 and accept the self-signed certificate. HTTP port 80 redirects to HTTPS; FastAPI port 4263 listens only on loopback. HTTPS is needed for the PWA service worker. For trusted PWA installation use a browser-trusted TLS certificate.",
+      "type": "info"
+    },
+    {
+      "text": "The initial username defaults to admin and the password is generated unless supplied. Credentials are read back from the CT and printed after installation. After first login clear BOTH ADMIN_USERNAME and ADMIN_PASSWORD in /opt/mc-gamertime_data/.env and restart mc-gamertime; bootstrap credentials are otherwise stored in plaintext.",
+      "type": "warning"
+    },
+    {
+      "text": "SQLite, uploaded media, JWT signing secret and configuration live in /opt/mc-gamertime_data and are never replaced during updates. Updates build in a staging directory before stopping the service; failed activation restores previous code. SQLite migrations are not rolled back: snapshot/back up the CT before upgrades, and check upstream release notes.",
+      "type": "warning"
+    },
+    {
+      "text": "Optional BGG_TOKEN enables game search. Add SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD and SMTP_FROM_ADDRESS to the systemd EnvironmentFile for password-reset email. Set APP_BASE_URL to your public HTTPS URL if using a domain or changing the container IP; without SMTP upstream logs reset links in the service journal.",
+      "type": "info"
+    }
+  ]
+}
